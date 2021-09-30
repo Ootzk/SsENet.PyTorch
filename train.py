@@ -59,6 +59,10 @@ creators = {
     'resnet34_Baseline': resnet34_Baseline,
     'resnet50_Baseline': resnet50_Baseline,
     
+    'resnet18_SE': resnet18_SE,
+    'resnet34_SE': resnet34_SE,
+    'resnet50_SE': resnet50_SE,
+    
     'resnet18_SsE': resnet18_SsE,
     'resnet34_SsE': resnet34_SsE,
     'resnet50_SsE': resnet50_SsE
