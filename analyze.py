@@ -20,6 +20,31 @@ plt.rcParams['figure.facecolor']  = 'white'
 plt.rcParams['savefig.facecolor'] = 'white'
 
 
+def load_model(experiment_title: str, experiment_ID: int, checkpoint: int, verbose: bool=False, return_config: bool=True):
+    experiment_ID = str(experiment_ID).zfill(2)
+    experiment_dir = f'experiments/{experiment_title}/{experiment_ID}'
+    
+    with open(f'{experiment_dir}/config.json', 'r') as experiment_config_file:
+        experiment_config = json.load(experiment_config_file)
+        
+    if verbose:
+        print(f'experiment configuration: ')
+        pprint.pprint(experiment_config)
+        
+    model = get_model_skeleton(experiment_config['model'], experiment_config['dataloader']['dataset'])
+    for candidate in os.listdir(f'{experiment_dir}/checkpoints/'):
+        if candidate.startswith(f'checkpoint_{checkpoint}_'):
+            model.load_state_dict(torch.load(f'{experiment_dir}/checkpoints/{candidate}')['model'])
+            if verbose:
+                print(f'checkpointed loaded: epoch {checkpoint}')
+            return model, experiment_config if return_config else return model
+        
+    if verbose:
+        print(f'checkpoint not found: epoch {checkpoint}')
+        return model, experiment_config if return_config else return model
+    
+
+
 def visualize_images(images, tags, applied_normalize, classes=None):
     inv_std = 1 / (torch.as_tensor(applied_normalize.std) - 1e-7)
     inv_mean = -torch.as_tensor(applied_normalize.mean) * inv_std
@@ -73,64 +98,3 @@ def visualize_tensor_distribution(tensor, is_mask=False):
         
     plt.title(f'tensor distribution\n# values: {torch.numel(tensor)}\n# unique values: {len(torch.unique(tensor))}')
     plt.show(block=False)
-    
-    
-
-# def integrate_mask(mask):
-#     if type(mask) == torch.Tensor: # DRQ mask
-#         integrated = torch.zeros_like(mask, dtype=torch.int8)
-#         integrated = integrated.masked_fill(mask, 8)
-#         integrated = integrated.masked_fill(~mask, 4)
-#         return integrated
-#     elif type(mask) == dict: # Silhouette mask
-#         integrated = None
-#         for nbit, m in mask.items():
-#             if integrated is None:
-#                 integrated = torch.zeros_like(m, dtype=torch.int8)
-#             integrated = integrated.masked_fill(m, int(nbit))
-#         return integrated
-    
-    
-    
-# def load_model(experiment_dir, checkpoint=None, verbose=False):
-#     if not experiment_dir.startswith('experiments/'):
-#         experiment_dir = f'experiments/{experiment_dir}'
-        
-#     with open(f'{experiment_dir}/config.json', 'r') as exp_config_file:
-#         exp_config = json.load(exp_config_file)
-    
-#     if verbose:
-#         print('experiment configuration: ')
-#         pprint.pprint(exp_config)
-        
-#     try:
-#         archived_arch = importlib.import_module(f'{experiment_dir.replace("/", ".")}.architectures')
-#     except ModuleNotFoundError:
-#         if verbose:
-#             print('archived architecture: (X), archived model loader: (X)\n')
-#         model = architectures.get_model_skeleton(exp_config['model'], exp_config['dataloader']['dataset'])
-#     else:
-#         try:
-#             model = archived_arch.get_model_skeleton(exp_config['model'], exp_config['dataloader']['dataset'])
-#             if verbose:
-#                 print('archived architecture: (O), archived model loader: (O)\n')
-#         except:
-#             model = architectures.get_model_skeleton(exp_config['model'], exp_config['dataloader']['dataset'])
-#             if verbose:
-#                 print('archived architecture: (O), archived model loader: (X)\n')
-                
-#     if checkpoint is None:
-#         if verbose:
-#             print(f'checkpoint: not specified')
-#         return model, exp_config
-#     else:
-#         for candidate in os.listdir(f'{experiment_dir}/checkpoints/'):
-#             if candidate.startswith(f'checkpoint_{checkpoint}_'):
-#                 model.load_state_dict(torch.load(f'{experiment_dir}/checkpoints/{candidate}')['model'])
-#                 if verbose:
-#                     print(f'checkpoint: epoch @ {checkpoint} loaded successfully')
-#                 return model, exp_config
-        
-#         if verbose:
-#             print(f'checkpoint: epoch @ {checkpoint} but not searched')
-#         return model, exp_config
