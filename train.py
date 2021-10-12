@@ -69,7 +69,11 @@ creators = {
     
     'resnet18_SssE': resnet18_SssE,
     'resnet34_SssE': resnet34_SssE,
-    'resnet50_SssE': resnet50_SssE
+    'resnet50_SssE': resnet50_SssE,
+    
+    'resnet18_SmE' : resnet18_SmE,
+    'resnet34_SmE' : resnet34_SmE,
+    'resnet50_SmE' : resnet50_SmE
 }
 
 ###############################################################################################################
@@ -78,7 +82,7 @@ def get_model_skeleton(model_config, target_dataset):
     if variation is None:
         variation = 'Baseline'
         
-    if variation not in ['Baseline', 'SE', 'SsE', 'SssE']:
+    if variation not in ['Baseline', 'SE', 'SsE', 'SssE', 'SmE']:
         raise NotImplementedError(f'variation {variation} does not supported')
         
     arch = f'{model_config["backbone"]}_{variation}'

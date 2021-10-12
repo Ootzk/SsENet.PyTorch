@@ -37,11 +37,18 @@ def load_model(experiment_title: str, experiment_ID: int, checkpoint: int, verbo
             model.load_state_dict(torch.load(f'{experiment_dir}/checkpoints/{candidate}')['model'])
             if verbose:
                 print(f'checkpointed loaded: epoch {checkpoint}')
-            return model, experiment_config if return_config else return model
+                
+            if return_config:
+                return model, experiment_config
+            else:
+                return model
         
     if verbose:
         print(f'checkpoint not found: epoch {checkpoint}')
-        return model, experiment_config if return_config else return model
+        if return_config:
+            return model, experiment_config
+        else:
+            return model
     
 
 
