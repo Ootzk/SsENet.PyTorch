@@ -80,7 +80,7 @@ class SE_layer(nn.Module):
         elif self.algorithm == "gapXstd":
             squeeze = F.adaptive_avg_pool2d(x, 1).view(b, c) * torch.std(x, dim=[2, 3])
         elif self.algorithm == "random":
-            squeeze = torch.rand((b, c))
+            squeeze = torch.rand((b, c), device=x.get_device())
             
         y = self.excitation(squeeze).view(b, c, 1, 1)
         
