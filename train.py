@@ -55,42 +55,14 @@ normalization = {
 }
 
 creators = {
-    'resnet18_Baseline': resnet18_Baseline,
-    'resnet34_Baseline': resnet34_Baseline,
-    'resnet50_Baseline': resnet50_Baseline,
-    
-    'resnet18_SE': resnet18_SE,
-    'resnet34_SE': resnet34_SE,
-    'resnet50_SE': resnet50_SE,
-    
-    'resnet18_SsE': resnet18_SsE,
-    'resnet34_SsE': resnet34_SsE,
-    'resnet50_SsE': resnet50_SsE,
-    
-    'resnet18_SssE': resnet18_SssE,
-    'resnet34_SssE': resnet34_SssE,
-    'resnet50_SssE': resnet50_SssE,
-    
-    'resnet18_SmE' : resnet18_SmE,
-    'resnet34_SmE' : resnet34_SmE,
-    'resnet50_SmE' : resnet50_SmE,
-    
-    'resnet18_SrE' : resnet18_SrE,
-    'resnet34_SrE' : resnet34_SrE,
-    'resnet50_SrE' : resnet50_SrE
+    'resnet18': resnet18,
+    'resnet34': resnet34,
+    'resnet50': resnet50
 }
 
 ###############################################################################################################
 def get_model_skeleton(model_config, target_dataset):
-    variation = model_config['variation']['type']
-    if variation is None:
-        variation = 'Baseline'
-        
-    if variation not in ['Baseline', 'SE', 'SsE', 'SssE', 'SmE', 'SrE']:
-        raise NotImplementedError(f'variation {variation} does not supported')
-        
-    arch = f'{model_config["backbone"]}_{variation}'
-    return creators[arch](target_dataset, model_config['variation']['config'])
+    return creators[model_config['backbone']](target_dataset, model_config.get('config'))
 
 
 

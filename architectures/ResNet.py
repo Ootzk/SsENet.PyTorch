@@ -1,47 +1,106 @@
 """
-Baseline/ResNet.py
+ResNet.py
 
-Basic ResNet implementation.
-Original PyTorch implementation is not good for CIFAR datasets(https://discuss.pytorch.org/t/resnet50-torchvision-implementation-gives-low-accuracy-on-cifar-10/82046)
-This is slight different with PyTorch official, which is not good for CIFAR datasets.
+ResNet architecture implementation with or without SE variant algorithm.
+source code refer: https://github.com/moskomule/senet.pytorch
 
 sample model configuration:
     "model": {
         "backbone": "resnet18",
-        "variation": {
-            "type": "Baseline",
-            "config": {
-            
-            }
+        # no config if you want Baseline
+        "config": {
+            "algorithm": ("SE" / "gap" / "gmp" / "std" / "gapXstd" / "random"),
+            # "SE" == "gap"
+            "reduction": 16
         }
     }
 """
+from typing import Type, List, Optional, Union
+
 import torch
 import torch.nn as nn
-
-
+import torch.nn.functional as F
 
 __all__ = [
-    'ResNet_Baseline',
-    'resnet18_Baseline',
-    'resnet34_Baseline',
-    'resnet50_Baseline'
+    'resnet18',
+    'resnet34',
+    'resnet50'
 ]
 
 
-def conv3x3_Baseline(in_planes, out_planes, stride=1, groups=1, dilation=1):
+
+def conv3x3(in_planes: int,
+            out_planes: int,
+            stride: int=1,
+            groups: int=1,
+            dilation: int=1) -> nn.Conv2d:
+    
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=False, dilation=dilation)
 
 
-def conv1x1_Baseline(in_planes, out_planes, stride=1):
+
+def conv1x1(in_planes: int,
+            out_planes: int,
+            stride: int=1) -> nn.Conv2d:
+    
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-class BasicBlock_Baseline(nn.Module):
+
+class SE_layer(nn.Module):
+    def __init__(self,
+                 channel: int,
+                 algorithm: str="SE",
+                 reduction: int=16) -> None:
+        super().__init__()
+        
+        assert algorithm in ["SE", "gap", "gmp", "std", "gapXstd", "random"]
+        self.algorithm = algorithm
+        
+        self.excitation = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+        
+    
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
+        
+        b, c, _, _ = x.size()
+        
+        if self.algorithm == "SE" or self.algorithm == "gap":
+            squeeze = F.adaptive_avg_pool2d(x, 1).view(b, c)
+        elif self.algorithm == "gmp":
+            squeeze = F.adaptive_max_pool2d(x, 1).view(b, c)
+        elif self.algorithm == "std":
+            squeeze = torch.std(x, dim=[2, 3])
+        elif self.algorithm == "gapXstd":
+            squeeze = F.adaptive_avg_pool2d(x, 1).view(b, c) * torch.std(x, dim=[2, 3])
+        elif self.algorithm == "random":
+            squeeze = torch.rand((b, c))
+            
+        y = self.excitation(squeeze).view(b, c, 1, 1)
+        
+        return x * y.expand_as(x)
+    
+    
+    
+class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=64, dilation=1, config=None):
+    def __init__(self,
+                 inplanes: int,
+                 planes: int,
+                 stride: int = 1,
+                 downsample: Optional[nn.Module] = None,
+                 groups: int = 1,
+                 base_width: int = 64,
+                 dilation: int = 1,
+                 *,
+                 config: Optional[dict] = None) -> None:
         super().__init__()
         if groups != 1 or base_width != 64:
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
@@ -49,17 +108,21 @@ class BasicBlock_Baseline(nn.Module):
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
     
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv3x3_Baseline(inplanes, planes, stride)
+        self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu1 = nn.ReLU()
-        self.conv2 = conv3x3_Baseline(planes, planes)
+        self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
         self.relu2 = nn.ReLU()
+        
+        if config is not None:
+            self.se = SE_layer(planes, config["algorithm"], config['reduction'])
         self.downsample = downsample
         self.stride = stride
 
         
-    def forward(self, x):
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -68,6 +131,9 @@ class BasicBlock_Baseline(nn.Module):
 
         out = self.conv2(out)
         out = self.bn2(out)
+        
+        if hasattr(self, "se"):
+            out = self.se(out)
 
         if self.downsample is not None:
             identity = self.downsample(x)
@@ -76,10 +142,10 @@ class BasicBlock_Baseline(nn.Module):
         out = self.relu2(out)
 
         return out
-
     
-
-class Bottleneck_Baseline(nn.Module):
+    
+    
+class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
     # while original implementation places the stride at the first 1x1 convolution(self.conv1)
     # according to "Deep residual learning for image recognition"https://arxiv.org/abs/1512.03385.
@@ -88,25 +154,37 @@ class Bottleneck_Baseline(nn.Module):
 
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=64, dilation=1, config=None):
+    def __init__(self, 
+                 inplanes: int,
+                 planes: int,
+                 stride: int = 1,
+                 downsample: Optional[nn.Module] = None,
+                 groups: int = 1,
+                 base_width: int = 64,
+                 dilation: int = 1,
+                 *, 
+                 config: Optional[dict] = None) -> None:
         super().__init__()
         width = int(planes * (base_width / 64.)) * groups
         
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv1x1_Baseline(inplanes, width)
+        self.conv1 = conv1x1(inplanes, width)
         self.bn1 = nn.BatchNorm2d(width)
         self.relu1 = nn.ReLU()
-        self.conv2 = conv3x3_Baseline(width, width, stride, groups, dilation)
+        self.conv2 = conv3x3(width, width, stride, groups, dilation)
         self.bn2 = nn.BatchNorm2d(width)
         self.relu2 = nn.ReLU()
-        self.conv3 = conv1x1_Baseline(width, planes * self.expansion)
+        self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu3 = nn.ReLU()
+        if config is not None:
+            self.se = SE_layer(planes * 4, config['algorithm'], config['reduction'])
         self.downsample = downsample
         self.stride = stride
 
         
-    def forward(self, x):
+    def forward(self, 
+                x: torch.Tensor):
         identity = x
 
         out = self.conv1(x)
@@ -119,6 +197,9 @@ class Bottleneck_Baseline(nn.Module):
 
         out = self.conv3(out)
         out = self.bn3(out)
+        
+        if hasattr(self, "se"):
+            out = self.se(out)
 
         if self.downsample is not None:
             identity = self.downsample(x)
@@ -127,11 +208,19 @@ class Bottleneck_Baseline(nn.Module):
         out = self.relu3(out)
 
         return out
-
-
     
-class ResNet_Baseline(nn.Module):
-    def __init__(self, block, layers, target_dataset, groups=1, width_per_group=64, replace_stride_with_dilation=None, config=None):   
+    
+    
+class ResNet(nn.Module):
+    def __init__(self, 
+                 block: Type[Union[BasicBlock, Bottleneck]],
+                 layers: List[int],
+                 target_dataset: str,
+                 groups: int = 1,
+                 width_per_group: int = 64,
+                 replace_stride_with_dilation: Optional[List[bool]] = None,
+                 *,
+                 config: Optional[dict])-> None:
         super().__init__()
         
         assert target_dataset in ['CIFAR10', 'CIFAR100', 'ImageNet', 'DEBUG']
@@ -142,6 +231,9 @@ class ResNet_Baseline(nn.Module):
             self.num_classes = 100
         elif target_dataset == 'ImageNet':
             self.num_classes = 1000
+            
+        if config is not None:
+            assert all(attr in config for attr in ["algorithm", "reduction"])
         
         self.config = config
         
@@ -185,9 +277,9 @@ class ResNet_Baseline(nn.Module):
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         for m in self.modules():
-            if isinstance(m, Bottleneck_Baseline):
+            if isinstance(m, Bottleneck):
                 nn.init.constant_(m.bn3.weight, 0)
-            elif isinstance(m, BasicBlock_Baseline):
+            elif isinstance(m, BasicBlock):
                 nn.init.constant_(m.bn2.weight, 0)
                 
 
@@ -234,13 +326,13 @@ class ResNet_Baseline(nn.Module):
     
     
     
-def resnet18_Baseline(target_dataset, config=None):
-    return ResNet_Baseline(BasicBlock_Baseline, [2, 2, 2, 2], target_dataset, config=config)
+def resnet18(target_dataset, config=None):
+    return ResNet(BasicBlock, [2, 2, 2, 2], target_dataset, config=config)
 
 
-def resnet34_Baseline(target_dataset, config=None):
-    return ResNet_Baseline(BasicBlock_Baseline, [3, 4, 6, 3], target_dataset, config=config)
+def resnet34(target_dataset, config=None):
+    return ResNet(BasicBlock, [3, 4, 6, 3], target_dataset, config=config)
 
 
-def resnet50_Baseline(target_dataset, config=None):
-    return ResNet_Baseline(Bottleneck_Baseline, [3, 4, 6, 3], target_dataset, config=config)
+def resnet50(target_dataset, config=None):
+    return ResNet(BasicBlock, [3, 4, 6, 3], target_dataset, config=config)
