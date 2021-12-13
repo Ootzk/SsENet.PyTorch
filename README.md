@@ -24,6 +24,7 @@ We've conducted experiments under same training recipe but only different squeez
 
 ## Experimental Results
 - ResNet18 + ImageNet
+
 | Squeeze operation | Top-1 Acc (%) | Top-5 Acc (%) | Improved Top-1 %p |
 | ---------- | ---------- | ----------| ---------- |
 | baseline | 65.71 | 86.29 | +0.00 |
@@ -34,6 +35,7 @@ We've conducted experiments under same training recipe but only different squeez
 | random | 65.36 | 86.22 | -0.35 |
 
 - ResNet50 + ImageNet
+
 | Squeeze operation | Top-1 Acc (%) | Top-5 Acc (%) | Improved Top-1 %p |
 | ---------- | ---------- | ----------| ---------- |
 | baseline | 70.94 | 89.84 | +0.00 |
