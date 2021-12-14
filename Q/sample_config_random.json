@@ -1,10 +1,14 @@
 {
     "experiment": {
-        "title": "Test - baseline",
-        "ID": 1
+        "title": "Test - random",
+        "ID": 6
     },
     "model": {
-        "backbone": "resnet18"
+        "backbone": "resnet18",
+        "config": {
+            "algorithm": "random",
+            "reduction": 16
+        }
     },
     "dataloader": {
         "dataset": "ImageNet",

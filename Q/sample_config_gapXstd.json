@@ -1,10 +1,14 @@
 {
     "experiment": {
-        "title": "Test - baseline",
-        "ID": 1
+        "title": "Test - gapXstd",
+        "ID": 5
     },
     "model": {
-        "backbone": "resnet18"
+        "backbone": "resnet18",
+        "config": {
+            "algorithm": "gapXstd",
+            "reduction": 16
+        }
     },
     "dataloader": {
         "dataset": "ImageNet",

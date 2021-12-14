@@ -1,10 +1,14 @@
 {
     "experiment": {
-        "title": "Test - baseline",
-        "ID": 1
+        "title": "Test - gap",
+        "ID": 2
     },
     "model": {
-        "backbone": "resnet18"
+        "backbone": "resnet18",
+        "config": {
+            "algorithm": "gap",
+            "reduction": 16
+        }
     },
     "dataloader": {
         "dataset": "ImageNet",

@@ -1,10 +1,14 @@
 {
     "experiment": {
-        "title": "Test - baseline",
-        "ID": 1
+        "title": "Test - gmp",
+        "ID": 3
     },
     "model": {
-        "backbone": "resnet18"
+        "backbone": "resnet18",
+        "config": {
+            "algorithm": "gmp",
+            "reduction": 16
+        }
     },
     "dataloader": {
         "dataset": "ImageNet",

@@ -1,15 +1,13 @@
 {
     "experiment": {
-        "title": "Test - SsE",
-        "ID": 1
+        "title": "Test - std",
+        "ID": 4
     },
     "model": {
         "backbone": "resnet18",
-        "variation": {
-            "type": "SsE",
-            "config": {
-                "reduction": 16
-            }
+        "config": {
+            "algorithm": "std",
+            "reduction": 16
         }
     },
     "dataloader": {
